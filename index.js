@@ -1,16 +1,15 @@
 const app = require('express')();
-const { equal } = require('assert');
 var cors = require('cors');
-const http = require('http').Server(app);
-//const io = require('socket.io')(http, { origins: ['http://localhost:4200', "*:*"], transports: ['polling', 'flashsocket'] });
 var corsOptions = {
-    origin: ["https://localhost:4200", "https://tresor.victordurand.fr", "https://rhumpa-loompa.fr"],
-    optionsSuccessStatus: 200 // some legacy browsers (IE11, various SmartTVs) choke on 204
+    origin: ["*","https://localhost:4200", "https://tresor.victordurand.fr", "https://rhumpa-loompa.fr"],
+    optionsSuccessStatus: 200
 }
+app.use(cors(corsOptions));
+const http = require('http').Server(app);
 
 const io = require("socket.io")(http, {
     cors: {
-        origin: ["https://localhost:4200"],
+        origin: "*",//["*"],//["https://localhost:4200"],
         methods: ["GET", "POST"],
         credentials: true
     },
@@ -20,7 +19,6 @@ const io = require("socket.io")(http, {
 
 let connectedUsers = [];
 
-let winners = [];
 
 io.on("connection", socket => {
     socket.on("phone.calling", (sessionDescription) => {
@@ -37,19 +35,9 @@ io.on("connection", socket => {
         console.log('ice candidate sharing');
         socket.broadcast.emit('phone.new-ice-candidate', candidat);
     })
-    // socket.on('user.login', username => {
-    //     if (userExists(username)) {
-    //         console.warn(`User ${username} already connected`);
-    //     } else {
-           
-    //     }
-    //     socket.emit('users.list.updated', connectedUsers);
-    //     socket.broadcast.emit('users.list.updated', connectedUsers);
-    //     socket.once('disconnect', reason => {
-    //         console.log(`${username} has disconnected`);
-    //         //remove user from connected list
-    //     });
-    // });
+    socket.on('phone.negociating', sessionDescription => {
+        socket.broadcast.emit('phone.negociating', sessionDescription);
+    })
 
 
 
@@ -75,4 +63,4 @@ app.get("/connected_users", cors(corsOptions), (req, res) => {
 
 
 
-http.listen(process.env.PORT || 3000);
+http.listen(process.env.PORT || 3000, "0.0.0.0");
