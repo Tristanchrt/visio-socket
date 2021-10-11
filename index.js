@@ -2,7 +2,7 @@ const app = require('express')();
 var cors = require('cors');
 const { captureRejectionSymbol } = require('events');
 var corsOptions = {
-    origin: ["*", "https://localhost:4200", "https://tresor.victordurand.fr", "https://rhumpa-loompa.fr"],
+    origin: ["*", "http://localhost:4200", "http://tresor.victordurand.fr", "http://rhumpa-loompa.fr"],
     optionsSuccessStatus: 200
 }
 app.use(cors(corsOptions));
@@ -10,82 +10,89 @@ const http = require('http').Server(app);
 
 const io = require("socket.io")(http, {
     cors: {
-        origin: "*",//["*"],//["https://localhost:4200"],
+        origin: ["http://localhost:4200"],
         methods: ["GET", "POST"],
         credentials: true
     },
     transports: ['polling']
 });
 
+console.log("Start server");
+
 let connectedUsers = {};
+let usersId = [];
 
 io.on("connection", socket => {
 
     socket.on("login", (user) => {
-        console.log('Login : ', user)
-        socket.id = user.id;
-        addUser(user, socket);
-        setup(user.id)
+        if(user){
+            console.log('CONNECTION USER : ', user);
+            socket.id = user.id;
+            connectedUsers[user.id] = socket;
+            if(!usersId.includes(user.id))
+                usersId.push(user.id);
+            
+            // user.roomIds.forEach(room => {
+            //     connectedUsers[idUser].join(room);
+            // });
+            
+            connected(user);
+            console.log('usersId.length : ', usersId.length, 'connectedUsers.length', connectedUsers.length);
+            setup(user.id);
+        }else{
+            console.log("No user...");
+        }
     });
-    
-    const setup = (idUser) => {
-
-        userSocket[idUser.id].on("phone.calling", (userCalled, sessionDescription) => {
-            console.log('Someone is calling');
-            userSocket[userCalled].emit('phone.call', sessionDescription);
-            setupRoom(idUser, userCalled)
-        });
-
-        userSocket[idUser.id].on("phone.answer", (userAnswer, answer) => {
-            console.log('Annswer to phone');
-            userSocket[userAnswer].emit('phone.answer', answer);
-        });
-
-        userSocket[idUser.id].on('phone.new-ice-candidate', (candidat) => {
-            console.log('ice candidate sharing');
-            // userSocket.emit('phone.new-ice-candidate', candidat);
-        });
-
-        userSocket[idUser.id].on('phone.negociating', sessionDescription => {
-            // userSocket.emit('phone.negociating', sessionDescription);
-        });
-
-        userSocket[idUser.id].on('disconnect', (user) => {
-            removeUser(user.id)
-        });
-        userSocket[idUser.id].on('connect_failed', () => {
-            throw 'Connection Failed';
-        });
-    }
-
-    // socket.on('user.disconnect', user => {
-    //     console.log(`${username} has disconnected`);
-    //     socket.to("admin").emit("admin.new.logs", `${username} has disconnected`);
-    //     const index = getUserIndex(username);
-    //     if (index !== -1)
-    //         connectedUsers.splice(index, 1);
-    //     socket.broadcast.emit('users.connected', connectedUsers);
-    // });
 });
 
-
-const setupRoom = (idUser, userCalled) => {
-
+const connected = (user) => {
+    connectedUsers[user.id].broadcast.emit('new.user', usersId);
 }
 
+const setup = (idUser) => {
 
-const addUser = (user, socket) => {
-    connectedUsers[user.id] = socket;
+    connectedUsers[idUser].on("phone.calling", (sessionDescription, video, users_ids) => {
+        console.log('Someone is calling : '+ users_ids);
+        users_ids = users_ids.filter(ele => ele.id != idUser);
+        users_ids.forEach(id => {
+            connectedUsers[id].emit('phone.call', sessionDescription, video);
+        });
+    });
+
+    connectedUsers[idUser].on("phone.answer", (roomId, answer) => {
+        console.log('Answer to phone');
+        let room = getRoom(roomId);
+        room.users.forEach(id => {
+            connectedUsers[use].emit('phone.answer', answer);
+        });
+    });
+
+    connectedUsers[idUser].on('message.new', (message, type, roomId) => {
+        console.log('New message', users_ids);
+        io.to(roomId).emit('message.send', { message, type });
+    });
+
+    connectedUsers[idUser].on('phone.new-ice-candidate', (candidat) => {
+        console.log('ice candidate sharing');
+        // connectedUsers.emit('phone.new-ice-candidate', candidat);
+    });
+
+    connectedUsers[idUser].on('phone.negociating', sessionDescription => {
+        // connectedUsers.emit('phone.negociating', sessionDescription);
+    });
+
+    connectedUsers[idUser].on('disconnect', (user) => {
+        removeUser(user.id);
+        usersId.splice(usersId.indexOf(user.id), 1);
+    });
+
+    connectedUsers[idUser].on('connect_failed', () => {
+        throw 'Connection Failed';
+    });
 }
 
-const removeUser = () => {
-    delete connectedUsers[user.id];
-}
-
-const userSocket = (id) => {
-    if (connectedUsers.indexOf(user)) {
-        return connectedUsers[user];
-    }
+const removeUser = (user) => {
+    delete connectedUsers[user];
 }
 
 app.get("/connected_users", cors(corsOptions), (req, res) => {
