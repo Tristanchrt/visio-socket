@@ -34,6 +34,8 @@ io.on("connection", socket => {
                 socket.join(room.id);
             });
 
+            socket.join('user-'+user.id);
+
             console.log(usersId);
             socket.broadcast.emit('new.user', user.id);
             socketEvent(socket, user.id);
@@ -46,34 +48,35 @@ io.on("connection", socket => {
 
 const socketEvent = (socket, idUser) => {
 
-    socket.on("phone.calling", (sessionDescription, video, users_ids) => {
-        console.log('Someone is calling : '+ users_ids);
-        if(users_ids){
-            users_ids = users_ids.filter(ele => ele.id != idUser);
-            users_ids.forEach(id => {
-                socket.emit('phone.call', sessionDescription, video);
-            });
-        }else{
-            console.log('No user_ids');
-        }
+    socket.on("phone.calling", (video, session) => {
+        console.log('Someone is calling ');
+        socket.broadcast.emit('phone.call', { session, video });
+    });
+    socket.on("room.create", (user_id) => {
+        console.log('Room create');
+        socket.to('user-'.user_id).emit('room.create');
     });
 
-    socket.on("phone.answer", (roomId, answer) => {
+    socket.on("phone.answer", (answer) => {
         console.log('Answer to phone');
+        socket.broadcast.emit('phone.answer',  answer );
     });
 
     socket.on('message.new', (obj) => {
         console.log('New message', obj);
-        socket.to(obj.room_id).emit('message.send', obj);
+        if(obj){
+            socket.to(obj.room_id).emit('message.send', obj);
+            socket.emit('message.send', obj);
+        }
     });
 
     socket.on('phone.new-ice-candidate', (candidat) => {
         console.log('ice candidate sharing');
-        // connectedUsers.emit('phone.new-ice-candidate', candidat);
+        socket.broadcast.emit('phone.new-ice-candidate', candidat);
     });
 
-    socket.on('phone.negociating', sessionDescription => {
-        // connectedUsers.emit('phone.negociating', sessionDescription);
+    socket.on('phone.negociating', (sessionDescription) => {
+        socket.broadcast.emit('phone.negociating', sessionDescription);
     });
 
     socket.on('disconnect', (user) => {
