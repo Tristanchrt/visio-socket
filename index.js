@@ -2,7 +2,7 @@ const app = require('express')();
 var cors = require('cors');
 const { captureRejectionSymbol } = require('events');
 var corsOptions = {
-    origin: ["*", "http://localhost:4200", "http://tresor.victordurand.fr", "http://rhumpa-loompa.fr", "http://192.168.43.205:4200"],
+    origin: ["*", "http://localhost:4200", "http://tresor.victordurand.fr", "http://rhumpa-loompa.fr", "http://192.168.43.205:4200", "https://visio.victordurand.fr"],
     optionsSuccessStatus: 200
 }
 app.use(cors(corsOptions));
@@ -10,7 +10,7 @@ const http = require('http').Server(app);
 
 const io = require("socket.io")(http, {
     cors: {
-        origin: ["http://192.168.43.205:4200", "http://localhost:4200"],
+        origin: ["http://192.168.43.205:4200", "https://visio.victordurand.fr", "http://localhost:4200"],
         methods: ["GET", "POST"],
         credentials: true
     },
